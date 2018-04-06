@@ -9,22 +9,7 @@
 </head>
 
 <body class="stackedit">
-  <div class="stackedit__left">
-    <div class="stackedit__toc">
-      
-<ul>
-<li><a href="#源码解析-go1.10">源码解析 go1.10</a>
-<ul>
-<li></li>
-</ul>
-</li>
-</ul>
-
-    </div>
-  </div>
-  <div class="stackedit__right">
-    <div class="stackedit__html">
-      <h1 id="源码解析-go1.10">源码解析 go1.10</h1>
+  <div class="stackedit__html"><h1 id="源码解析-go1.10">源码解析 go1.10</h1>
 <h3 id="hchan-是-channel-在-runtime-中的数据结构">hchan 是 channel 在 runtime 中的数据结构</h3>
 <hr>
 <pre class=" language-go"><code class="prism  language-go"><span class="token keyword">type</span> hchan <span class="token keyword">struct</span> <span class="token punctuation">{</span>
@@ -149,9 +134,7 @@ c<span class="token punctuation">.</span>buf <span class="token operator">=</spa
 
 
 </code></pre>
-
-    </div>
-  </div>
+</div>
 </body>
 
 </html>
