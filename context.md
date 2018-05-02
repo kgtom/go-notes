@@ -148,7 +148,37 @@ time<span class="token punctuation">.</span><span class="token function">Sleep</
 
 <span class="token punctuation">}</span>
 </code></pre>
-<h2 id="四、-context-使用原则">四、 Context 使用原则</h2>
+<h2 id="四、继承-context">四、继承 context</h2>
+<p>context 包提供了一些函数，协助用户从现有的  <code>Context</code>  对象创建新的  <code>Context</code>  对象。<br>
+这些  <code>Context</code>  对象形成一棵树：当一个  <code>Context</code>  对象被取消时，继承自它的所有  <code>Context</code>  都会被取消。</p>
+<p><code>Background</code>  是所有  <code>Context</code>  对象树的根，它不能被取消。它的声明如下：</p>
+<pre><code>// Background returns an empty Context. It is never canceled, has no deadline,
+// and has no values. Background is typically used in main, init, and tests,
+// and as the top-level `Context` for incoming requests.
+func Background() Context
+</code></pre>
+<p><code>WithCancel</code>  和  <code>WithTimeout</code>  函数 会返回继承的  <code>Context</code>  对象， 这些对象可以比它们的父  <code>Context</code>  更早地取消。</p>
+<p>当请求处理函数返回时，与该请求关联的  <code>Context</code>  会被取消。 当使用多个副本发送请求时，可以使用  <code>WithCancel</code>取消多余的请求。  <code>WithTimeout</code>  在设置对后端服务器请求截止时间时非常有用。 下面是这三个函数的声明：</p>
+<pre><code>// WithCancel returns a copy of parent whose Done channel is closed as soon as
+// parent.Done is closed or cancel is called.
+func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
+
+// A CancelFunc cancels a Context.
+type CancelFunc func()
+
+// WithTimeout returns a copy of parent whose Done channel is closed as soon as
+// parent.Done is closed, cancel is called, or timeout elapses. The new
+// Context's Deadline is the sooner of now+timeout and the parent's deadline, if
+// any. If the timer is still running, the cancel function releases its
+// resources.
+func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+</code></pre>
+<p><code>WithValue</code>  函数能够将请求作用域的数据与  <code>Context</code>  对象建立关系。声明如下：</p>
+<pre><code>// WithValue returns a copy of parent whose Value method returns val for key.
+func WithValue(parent Context, key interface{}, val interface{}) Context
+</code></pre>
+<p>当然，想要知道  <code>Context</code>  包是如何工作的，最好的方法是看一个栗子。</p>
+<h2 id="五、-context-使用原则">五、 Context 使用原则</h2>
 <ol>
 <li>不要把Context放在结构体中，要以参数的方式传递</li>
 <li>以Context作为参数的函数方法，应该把Context作为第一个参数，放在第一位。</li>
