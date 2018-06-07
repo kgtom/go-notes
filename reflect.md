@@ -109,7 +109,7 @@
    <span class="token keyword">return</span> <span class="token boolean">false</span>  
 <span class="token punctuation">}</span>
 </code></pre>
-<h3 id="例子2-操作map">例子2 操作map</h3>
+<h3 id="elem.set使用">Elem().Set使用</h3>
 <pre class=" language-go"><code class="prism  language-go">
 <span class="token keyword">func</span> <span class="token function">test</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
   
@@ -125,8 +125,8 @@
   v<span class="token punctuation">.</span><span class="token function">Elem</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">Set</span><span class="token punctuation">(</span>reflect<span class="token punctuation">.</span><span class="token function">ValueOf</span><span class="token punctuation">(</span><span class="token number">2</span><span class="token punctuation">)</span><span class="token punctuation">)</span>  
    <span class="token comment">//_= v.Elem().Int()  </span>
   fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"type:"</span><span class="token punctuation">,</span>v<span class="token punctuation">.</span><span class="token function">Type</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>  
-   fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"value:"</span><span class="token punctuation">,</span>i<span class="token punctuation">)</span>  
-   fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"kind:"</span><span class="token punctuation">,</span>v<span class="token punctuation">.</span><span class="token function">Kind</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>  
+  fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"value:"</span><span class="token punctuation">,</span>i<span class="token punctuation">)</span>  
+  fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"kind:"</span><span class="token punctuation">,</span>v<span class="token punctuation">.</span><span class="token function">Kind</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>  
   
    <span class="token operator">&lt;-</span>ch  
   
