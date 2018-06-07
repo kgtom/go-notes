@@ -4,55 +4,39 @@
 <p>在后端api开发中，每一个请求在都有一个对应的 goroutine 去处理。比如数据库和RPC服务。用来处理一个请求的 goroutine 通常需要访问一些与请求特定的数据，比如终端用户的身份认证信息、验证相关的token、请求的截止时间。 当一个请求被取消或超时时，所有用来处理该请求的 goroutine 都应该迅速退出，然后系统才能释放这些 goroutine 占用的资源。</p>
 <p>在Google 内部，我们开发了  <code>Context</code>  包，专门用来简化 对于处理单个请求的多个 goroutine 之间与请求域的数据、取消信号、截止时间等相关操作，这些操作可能涉及多个 API 调用。你可以通过  <code>go get golang.org/x/net/context</code>  命令获取这个包。</p>
 <h2 id="二、源码分析">二、源码分析</h2>
-<pre class=" language-go"><code class="prism  language-go">
+~~~go
+// +build !go1.9
 
-<span class="token comment">// +build !go1.9</span>
+	// A Context carries a deadline, a cancelation signal, and other values across
+	//包含 超时、取消信号及传值
 
+	// Context's methods may be called by multiple goroutines simultaneously.
+	//被多个goroutine同时使用
 
-<span class="token comment">// A Context carries a deadline, a cancelation signal, and other values across</span>
-<span class="token comment">//包含 超时、取消信号及传值</span>
+	type Context interface {
+		// set. Successive calls to Deadline return the same results.
+		//Deadline返回context何时会超时。
+		Deadline() (deadline time.Time, ok bool)
 
-<span class="token comment">// Context's methods may be called by multiple goroutines simultaneously.</span>
-<span class="token comment">//被多个goroutine同时使用</span>
+		// See http://blog.golang.org/pipelines for more examples of how to use
 
-<span class="token keyword">type</span> Context <span class="token keyword">interface</span> <span class="token punctuation">{</span>
+		// a Done channel for cancelation.
+		//Done 方法在Context被取消或超时时返回一个close的channel,close的channel可以作为广播通知，告诉给context相关的函数要停止当前工作然后返回。
+		Done() <-chan struct{}
 
+		// Err returns a non-nil error value after Done is closed. Err returns
 
+		//Err方法返回context为什么被取消。
 
-<span class="token comment">// set. Successive calls to Deadline return the same results.</span>
-<span class="token operator">*</span><span class="token operator">*</span>Deadline<span class="token operator">*</span><span class="token operator">*</span>返回context何时会超时。
-<span class="token function">Deadline</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">(</span>deadline time<span class="token punctuation">.</span>Time<span class="token punctuation">,</span> ok <span class="token builtin">bool</span><span class="token punctuation">)</span>
+		Err() error
 
+		// Use context values only for request-scoped data that transits
 
-<span class="token comment">// See http://blog.golang.org/pipelines for more examples of how to use</span>
+		//Value方法对请求作用域传值使用，key-value结构，线程安全的
 
-<span class="token comment">// a Done channel for cancelation.</span>
-<span class="token operator">*</span><span class="token operator">*</span>Done<span class="token operator">*</span><span class="token operator">*</span> 方法在Context被取消或超时时返回一个<span class="token builtin">close</span>的channel<span class="token punctuation">,</span><span class="token builtin">close</span>的channel可以作为广播通知，告诉给context相关的函数要停止当前工作然后返回。
-<span class="token function">Done</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">&lt;-</span><span class="token keyword">chan</span> <span class="token keyword">struct</span><span class="token punctuation">{</span><span class="token punctuation">}</span>
+		Value(key interface{}) interface{}
+~~~
 
-<span class="token comment">// Err returns a non-nil error value after Done is closed. Err returns</span>
-
-<span class="token operator">*</span><span class="token operator">*</span>Err<span class="token operator">*</span><span class="token operator">*</span>方法返回context为什么被取消。
-
-<span class="token function">Err</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token builtin">error</span>
-
-
-<span class="token comment">// Use context values only for request-scoped data that transits</span>
-
-<span class="token operator">*</span><span class="token operator">*</span>Value<span class="token operator">*</span><span class="token operator">*</span>方法对请求作用域传值使用，key<span class="token operator">-</span>value结构，线程安全的
-
-<span class="token function">Value</span><span class="token punctuation">(</span>key <span class="token keyword">interface</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">)</span> <span class="token keyword">interface</span><span class="token punctuation">{</span><span class="token punctuation">}</span>
-
-<span class="token punctuation">}</span>
-
-<span class="token comment">// A CancelFunc tells an operation to abandon its work.</span>
-
-<span class="token comment">// A CancelFunc does not wait for the work to stop.</span>
-
-<span class="token comment">// After the first call, subsequent calls to a CancelFunc do nothing.</span>
-
-<span class="token keyword">type</span> CancelFunc <span class="token keyword">func</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
-</code></pre>
 <h2 id="三、使用场景">三、使用场景</h2>
 <p>使用context实现上下文功能约定需要在你的方法的传入参数的第一个传入一个context.Context类型的变量。<br>
 比如:</p>
