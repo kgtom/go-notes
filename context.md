@@ -86,7 +86,7 @@ ctx, cancel := context.WithCancel(context.Background())
 
 <p>***主动取消：</p>
 
-~~~go
+~~~ go
 
 	ctx, cancel := context.WithCancel(context.Background())
 	valueCtx:=context.WithValue(ctx,"name","a")//context.WithValue传值
