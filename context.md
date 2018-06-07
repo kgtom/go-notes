@@ -64,41 +64,29 @@
 <li>上层需要主动取消的情况：ctx, cancel := context.WithCancel(ctx)；需要的地方调用cancel()</li>
 </ul>
 <p>***制定超时：</p>
-<pre class=" language-go"><code class="prism  language-go"><span class="token keyword">package</span> main
 
-<span class="token keyword">import</span> <span class="token punctuation">(</span>
-	<span class="token string">"context"</span>
-	<span class="token string">"fmt"</span>
-	<span class="token string">"math/rand"</span>
-	<span class="token string">"time"</span>
-<span class="token punctuation">)</span>
+```go
+ctx, cancel := context.WithCancel(context.Background())
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("time out")
+				return
+			default:
+				fmt.Println("default...")
+				time.Sleep(2 * time.Second)
+			}
+		}
+	}(ctx)
 
-<span class="token keyword">func</span> <span class="token function">main</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+	time.Sleep(6 * time.Second)//10s 时间
+	fmt.Println("todo....")
+	cancel()
+	//看一下 "timeout"输出
+	time.Sleep(3 * time.Second)
+```
 
-<span class="token comment">//超时时间设置 50ms</span>
-	duration <span class="token operator">:=</span> <span class="token number">50</span> <span class="token operator">*</span> time<span class="token punctuation">.</span>Millisecond
-
-	ctx<span class="token punctuation">,</span> cancel <span class="token operator">:=</span> context<span class="token punctuation">.</span><span class="token function">WithTimeout</span><span class="token punctuation">(</span>context<span class="token punctuation">.</span><span class="token function">Background</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> duration<span class="token punctuation">)</span>
-	<span class="token keyword">defer</span> <span class="token function">cancel</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
-
-	ch <span class="token operator">:=</span> <span class="token function">make</span><span class="token punctuation">(</span><span class="token keyword">chan</span> <span class="token builtin">string</span><span class="token punctuation">,</span> <span class="token number">1</span><span class="token punctuation">)</span>
-
-	<span class="token keyword">go</span> <span class="token keyword">func</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
-	<span class="token comment">//模拟工作时间 &gt;50ms,超时啦</span>
-		time<span class="token punctuation">.</span><span class="token function">Sleep</span><span class="token punctuation">(</span>time<span class="token punctuation">.</span><span class="token function">Duration</span><span class="token punctuation">(</span>rand<span class="token punctuation">.</span><span class="token function">Intn</span><span class="token punctuation">(</span><span class="token number">100</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token operator">*</span> time<span class="token punctuation">.</span>Millisecond<span class="token punctuation">)</span>
-		ch <span class="token operator">&lt;-</span> <span class="token string">"wrok"</span>
-	<span class="token punctuation">}</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
-
-	<span class="token keyword">select</span> <span class="token punctuation">{</span>
-	<span class="token keyword">case</span> p <span class="token operator">:=</span> <span class="token operator">&lt;-</span>ch<span class="token punctuation">:</span>
-		fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"work complete"</span><span class="token punctuation">,</span> p<span class="token punctuation">)</span>
-
-	<span class="token keyword">case</span> <span class="token operator">&lt;-</span>ctx<span class="token punctuation">.</span><span class="token function">Done</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-		fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"wrok time out "</span><span class="token punctuation">)</span>
-	<span class="token punctuation">}</span>
-<span class="token punctuation">}</span>
-
-</code></pre>
 <p>***主动取消：</p>
 <pre class=" language-go"><code class="prism  language-go">
 <span class="token keyword">func</span>  <span class="token function">main</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
