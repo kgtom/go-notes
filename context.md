@@ -1,7 +1,4 @@
----
 
-
----
 
 <h2 id="一、背景">一、背景</h2>
 <p>在后端api开发中，每一个请求在都有一个对应的 goroutine 去处理。比如数据库和RPC服务。用来处理一个请求的 goroutine 通常需要访问一些与请求特定的数据，比如终端用户的身份认证信息、验证相关的token、请求的截止时间。 当一个请求被取消或超时时，所有用来处理该请求的 goroutine 都应该迅速退出，然后系统才能释放这些 goroutine 占用的资源。</p>
@@ -88,54 +85,55 @@ ctx, cancel := context.WithCancel(context.Background())
 ```
 
 <p>***主动取消：</p>
-<pre class=" language-go"><code class="prism  language-go">
-<span class="token keyword">func</span>  <span class="token function">main</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
 
-ctx<span class="token punctuation">,</span> cancel  <span class="token operator">:=</span> context<span class="token punctuation">.</span><span class="token function">WithCancel</span><span class="token punctuation">(</span>context<span class="token punctuation">.</span><span class="token function">Background</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+~~~go
 
-<span class="token keyword">go</span>  <span class="token function">DoWork</span><span class="token punctuation">(</span>ctx<span class="token punctuation">,</span> <span class="token string">"a"</span><span class="token punctuation">)</span>
+	ctx, cancel := context.WithCancel(context.Background())
+	valueCtx:=context.WithValue(ctx,"name","a")//context.WithValue传值
+     go DoWork(valueCtx)
 
-<span class="token keyword">go</span>  <span class="token function">DoWork</span><span class="token punctuation">(</span>ctx<span class="token punctuation">,</span> <span class="token string">"b"</span><span class="token punctuation">)</span>
+	valueCtx=context.WithValue(ctx,"name","b")
+	go DoWork(valueCtx)
 
-<span class="token keyword">go</span>  <span class="token function">DoWork</span><span class="token punctuation">(</span>ctx<span class="token punctuation">,</span> <span class="token string">"c"</span><span class="token punctuation">)</span>
+	valueCtx=context.WithValue(ctx,"name","c")
+	go DoWork(valueCtx)
 
-time<span class="token punctuation">.</span><span class="token function">Sleep</span><span class="token punctuation">(</span><span class="token number">6</span>  <span class="token operator">*</span> time<span class="token punctuation">.</span>Second<span class="token punctuation">)</span>
+	time.Sleep(6 * time.Second)
 
-fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token string">"工作时间到了，通知a、b、c 停止工作！"</span><span class="token punctuation">)</span>
+	fmt.Println("工作时间到了，通知a、b、c 停止工作！")
 
-<span class="token comment">//主动取消</span>
-<span class="token function">cancel</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+	//主动取消
+	cancel()
 
-<span class="token comment">// 为了检测DoWork是否停止</span>
+	// 为了看一下DoWork输出，实质检查goroutine是否停止
 
-time<span class="token punctuation">.</span><span class="token function">Sleep</span><span class="token punctuation">(</span><span class="token number">3</span>  <span class="token operator">*</span> time<span class="token punctuation">.</span>Second<span class="token punctuation">)</span>
+	time.Sleep(3 * time.Second)
+	
+	
+	func DoWork(ctx context.Context) {
 
-<span class="token punctuation">}</span>
+	for {
 
-<span class="token keyword">func</span>  <span class="token function">DoWork</span><span class="token punctuation">(</span>ctx context<span class="token punctuation">.</span>Context<span class="token punctuation">,</span> name <span class="token builtin">string</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+		select {
 
-<span class="token keyword">for</span> <span class="token punctuation">{</span>
+		case <-ctx.Done():
 
-<span class="token keyword">select</span> <span class="token punctuation">{</span>
+			fmt.Println(ctx.Value("name"), "主动停止 work")
 
-<span class="token keyword">case</span>  <span class="token operator">&lt;-</span>ctx<span class="token punctuation">.</span><span class="token function">Done</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+			return
 
-fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span>name<span class="token punctuation">,</span> <span class="token string">"主动停止 work"</span><span class="token punctuation">)</span>
+		default:
 
-<span class="token keyword">return</span>
+			fmt.Println(ctx.Value("name"), "work time 2s:...")
 
-<span class="token keyword">default</span><span class="token punctuation">:</span>
+			time.Sleep(2 * time.Second)
 
-fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span>name<span class="token punctuation">,</span> <span class="token string">"working，workTime 2s:..."</span><span class="token punctuation">)</span>
+		}
 
-time<span class="token punctuation">.</span><span class="token function">Sleep</span><span class="token punctuation">(</span><span class="token number">2</span>  <span class="token operator">*</span> time<span class="token punctuation">.</span>Second<span class="token punctuation">)</span>
+	}
 
-<span class="token punctuation">}</span>
-
-<span class="token punctuation">}</span>
-
-<span class="token punctuation">}</span>
-</code></pre>
+}
+~~~
 <h2 id="四、继承-context">四、继承 context</h2>
 <p>context 包提供了一些函数，协助用户从现有的  <code>Context</code>  对象创建新的  <code>Context</code>  对象。<br>
 这些  <code>Context</code>  对象形成一棵树：当一个  <code>Context</code>  对象被取消时，继承自它的所有  <code>Context</code>  都会被取消。</p>
