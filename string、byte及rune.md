@@ -73,25 +73,27 @@
 <p><strong>解析</strong><br>
 str2 是一个rune类型切片的引用，相对于str重新申请一块内存地址，str2修改不影响str。</p>
 <h2 id="span-id6六、字符串遍历span"><span id="6">六、字符串遍历</span></h2>
-<pre class=" language-go"><code class="prism  language-go">   str <span class="token operator">:=</span> <span class="token string">"hello 中国"</span>
 
-	<span class="token comment">//第一种 实质byte,utf-8编码遍历</span>
-	<span class="token keyword">for</span> i <span class="token operator">:=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> <span class="token function">len</span><span class="token punctuation">(</span>str<span class="token punctuation">)</span><span class="token punctuation">;</span> i<span class="token operator">++</span> <span class="token punctuation">{</span>
-		fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span>str<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">)</span>
-	<span class="token punctuation">}</span>
-	<span class="token comment">//第二种 使用range隐式转换成Unicode</span>
-	<span class="token keyword">for</span> <span class="token boolean">_</span><span class="token punctuation">,</span> v <span class="token operator">:=</span> <span class="token keyword">range</span> str <span class="token punctuation">{</span>
-		<span class="token comment">//fmt.Printf("%c,", v)</span>
-		fmt<span class="token punctuation">.</span><span class="token function">Println</span><span class="token punctuation">(</span><span class="token function">string</span><span class="token punctuation">(</span>v<span class="token punctuation">)</span><span class="token punctuation">)</span>
-	<span class="token punctuation">}</span>
-	<span class="token comment">//第三种 先转换成[]rune,再遍历</span>
-	str2 <span class="token operator">:=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token function">rune</span><span class="token punctuation">(</span>str<span class="token punctuation">)</span>
-	<span class="token keyword">for</span> i <span class="token operator">:=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> <span class="token function">len</span><span class="token punctuation">(</span>str2<span class="token punctuation">)</span><span class="token punctuation">;</span> i<span class="token operator">++</span> <span class="token punctuation">{</span>
-		fmt<span class="token punctuation">.</span><span class="token function">Printf</span><span class="token punctuation">(</span><span class="token string">"%c,"</span><span class="token punctuation">,</span> str2<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">)</span>
-		<span class="token comment">//fmt.Println(string(str2[i]))</span>
-	<span class="token punctuation">}</span>
+~~~go
+       str := "hello 中国"
 
-</code></pre>
+	//第一种 实质byte,utf-8编码遍历
+	for i := 0; i < len(str); i++ {
+		fmt.Println(str[i])
+	}
+	//第二种 使用range隐式转换成Unicode
+	for _, v := range str {
+		//fmt.Printf("%c,", v)
+		fmt.Println(string(v))
+	}
+	//第三种 先转换成[]rune,再遍历
+	str2 := []rune(str)
+	for i := 0; i < len(str2); i++ {
+		fmt.Printf("%c,", str2[i])
+		//fmt.Println(string(str2[i]))
+	}
+
+~~~
 <blockquote>
 <p>reference:<br>
 <a href="https://github.com/golang/go/blob/2f2e8f9c81d899d8eefb1f2f98ce5c90976c4f61/src/runtime/string.go">github/golang</a></p>
