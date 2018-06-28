@@ -1,7 +1,4 @@
----
 
-
----
 
 <h2 id="本章知识点">本章知识点</h2>
 <ul>
@@ -15,32 +12,36 @@
 <h3 id="一、map基本结构">一、map基本结构</h3>
 <p><strong>源码地址：</strong> go1.10/src/runtime/hashmap.go</p>
 <p>map的底层结构是hmap（即hashmap的缩写），核心元素是一个由若干个桶（bucket，结构为bmap）组成的数组，每个bucket可以存放若干元素（通常是8个），key通过哈希算法被归入不同的bucket中。当超过8个元素需要存入某个bucket时，hmap会使用extra中的overflow来拓展该bucket。下面是hmap的结构体。</p>
-<pre class=" language-go"><code class="prism  language-go"><span class="token keyword">type</span> hmap <span class="token keyword">struct</span> <span class="token punctuation">{</span>
-	count     <span class="token builtin">int</span> <span class="token comment">// # 元素个数</span>
-	flags     <span class="token builtin">uint8</span>
-	B         <span class="token builtin">uint8</span>  <span class="token comment">// 说明包含2^B个bucket</span>
-	noverflow <span class="token builtin">uint16</span> <span class="token comment">// 溢出的bucket的个数</span>
-	hash0     <span class="token builtin">uint32</span> <span class="token comment">// hash种子</span>
+~~~go
+type hmap struct {
+	count     int // # 元素个数
+	flags     uint8
+	B         uint8  // 说明包含2^B个bucket
+	noverflow uint16 // 溢出的bucket的个数
+	hash0     uint32 // hash种子
 
-	buckets    unsafe<span class="token punctuation">.</span>Pointer <span class="token comment">// buckets的数组指针</span>
-	oldbuckets unsafe<span class="token punctuation">.</span>Pointer <span class="token comment">// 结构扩容的时候用于复制的buckets数组</span>
-	nevacuate  <span class="token builtin">uintptr</span>        <span class="token comment">// 搬迁进度（已经搬迁的buckets数量）</span>
+	buckets    unsafe.Pointer // buckets的数组指针
+	oldbuckets unsafe.Pointer // 结构扩容的时候用于复制的buckets数组
+	nevacuate  uintptr        // 搬迁进度（已经搬迁的buckets数量）
 
-	extra <span class="token operator">*</span>mapextra
-<span class="token punctuation">}</span>
+	extra *mapextra
+}
 
-</code></pre>
+~~~
+
 <p>在extra中不仅有overflow，还有oldoverflow（用于扩容）和nextoverflow（prealloc的地址）。</p>
-<pre class=" language-go"><code class="prism  language-go"><span class="token keyword">type</span> mapextra <span class="token keyword">struct</span> <span class="token punctuation">{</span>
-     overflow    <span class="token operator">*</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token operator">*</span>bmap
-     oldoverflow <span class="token operator">*</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token operator">*</span>bmap
-     nextOverflow <span class="token operator">*</span>bmap
-<span class="token punctuation">}</span>
-</code></pre>
-<pre class=" language-go"><code class="prism  language-go"><span class="token keyword">type</span> bmap <span class="token keyword">struct</span> <span class="token punctuation">{</span>
-    tophash <span class="token punctuation">[</span>bucketCnt<span class="token punctuation">]</span><span class="token builtin">uint8</span>
-<span class="token punctuation">}</span>
-</code></pre>
+
+~~~go
+type mapextra struct {
+     overflow    *[]*bmap
+     oldoverflow *[]*bmap
+     nextOverflow *bmap
+}
+type bmap struct {
+    tophash [bucketCnt]uint8
+}
+~~~
+
 <ul>
 <li>tophash用于记录8个key哈希值的高8位，这样在寻找对应key的时候可以更快，不必每次都对key做全等判断。</li>
 <li><strong>注意后面几行注释，hmap并非只有一个tophash，而是后面紧跟8组kv对和一个overflow的指针，这样才能使overflow成为一个链表的结构。但是这两个结构体并不是显示定义的，而是直接通过指针运算进行访问的。</strong></li>
@@ -49,60 +50,65 @@
 <h3 id="二、map-创建、读取">二、map 创建、读取</h3>
 <h4 id="创建">创建</h4>
 <p>创建其实就是完成内存的申请，以及一些初始值的设定。那么这里假设创建的空间较大，也就是说将 overflow 区域的初始化，也一并放在这里记录。</p>
-<pre class=" language-go"><code class="prism  language-go"><span class="token comment">// hint 代表的 capacity</span>
-<span class="token keyword">func</span> <span class="token function">makemap</span><span class="token punctuation">(</span>t <span class="token operator">*</span>maptype<span class="token punctuation">,</span> hint <span class="token builtin">int64</span><span class="token punctuation">)</span> <span class="token operator">*</span>hmap  <span class="token punctuation">{</span>
-    <span class="token comment">// 条件检查</span>
-    t<span class="token punctuation">.</span>keysize <span class="token operator">=</span> sys<span class="token punctuation">.</span>PtrSize <span class="token operator">=</span> t<span class="token punctuation">.</span>key<span class="token punctuation">.</span>size
-    t<span class="token punctuation">.</span>valuesize <span class="token operator">=</span> sys<span class="token punctuation">.</span>PtrSize <span class="token operator">=</span> t<span class="token punctuation">.</span>elem<span class="token punctuation">.</span>size
+~~~go
+// hint 代表的 capacity
+func makemap(t *maptype, hint int64) *hmap  {
+    // 条件检查
+    t.keysize = sys.PtrSize = t.key.size
+    t.valuesize = sys.PtrSize = t.elem.size
 
-    <span class="token comment">// 通过 hint 确定 hmap 中最小的 B 应该是多大。</span>
-    <span class="token comment">// B 与后面的内存空间申请，以及未来可能的扩容都有关。B 是一个基数。</span>
-    <span class="token comment">// overLoadFactor 考虑了装载因子。golang 将其初始设置为 0.65</span>
-    B <span class="token operator">:=</span> <span class="token function">uint8</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">)</span>
-    <span class="token keyword">for</span> <span class="token punctuation">;</span> <span class="token function">overLoadFactor</span><span class="token punctuation">(</span>hint<span class="token punctuation">,</span> B<span class="token punctuation">)</span><span class="token punctuation">;</span> B<span class="token operator">++</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+    // 通过 hint 确定 hmap 中最小的 B 应该是多大。
+    // B 与后面的内存空间申请，以及未来可能的扩容都有关。B 是一个基数。
+    // overLoadFactor 考虑了装载因子。golang 将其初始设置为 0.65
+    B := uint8(0)
+    for ; overLoadFactor(hint, B); B++ {}
 
-    <span class="token comment">// golang 是 lazy 形式申请内存</span>
-        <span class="token keyword">if</span> B <span class="token operator">!=</span> <span class="token number">0</span> <span class="token punctuation">{</span>
-        <span class="token keyword">var</span> nextOverflow <span class="token operator">*</span>bmap
-        buckets<span class="token punctuation">,</span> nextOverflow <span class="token operator">=</span> <span class="token function">makeBucketArray</span><span class="token punctuation">(</span>t<span class="token punctuation">,</span> B<span class="token punctuation">)</span>
-        <span class="token keyword">if</span> nextOverflow <span class="token operator">!=</span> <span class="token boolean">nil</span> <span class="token punctuation">{</span>
-            extra <span class="token operator">=</span> <span class="token function">new</span><span class="token punctuation">(</span>mapextra<span class="token punctuation">)</span>
-            extra<span class="token punctuation">.</span>nextOverflow <span class="token operator">=</span> nextOverflow
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">}</span>
+    // golang 是 lazy 形式申请内存
+        if B != 0 {
+        var nextOverflow *bmap
+        buckets, nextOverflow = makeBucketArray(t, B)
+        if nextOverflow != nil {
+            extra = new(mapextra)
+            extra.nextOverflow = nextOverflow
+        }
+    }
+    // 后面就是将内存地址关联到 hmap 结构，并返回实例
+    h.count = 0  // 记录存储的 k/v pari 数量。扩容时候会用到
+    h.B = B  // 记录基数
+    h.flags = 0 // 与状态有关。包含并发控制，以及扩容。
 
-    <span class="token comment">// 后面就是将内存地址关联到 hmap 结构，并返回实例</span>
-    h<span class="token punctuation">.</span>count <span class="token operator">=</span> <span class="token number">0</span>  <span class="token comment">// 记录存储的 k/v pari 数量。扩容时候会用到</span>
-    h<span class="token punctuation">.</span>B <span class="token operator">=</span> B  <span class="token comment">// 记录基数</span>
-    h<span class="token punctuation">.</span>flags <span class="token operator">=</span> <span class="token number">0</span> <span class="token comment">// 与状态有关。包含并发控制，以及扩容。</span>
+    ...
+}
+~~~
 
-    <span class="token operator">...</span>
-<span class="token punctuation">}</span>
 
-<span class="token comment">// makeBucketArray 会根据情况判断是否要申请 nextOverflow 。</span>
-<span class="token keyword">func</span> <span class="token function">makeBucketArray</span><span class="token punctuation">(</span>t <span class="token operator">*</span>maptype<span class="token punctuation">,</span> b <span class="token builtin">uint8</span><span class="token punctuation">)</span> <span class="token punctuation">(</span>buckets unsafe<span class="token punctuation">.</span>Pointer<span class="token punctuation">,</span> nextOverflow <span class="token operator">*</span>bmap<span class="token punctuation">)</span> <span class="token punctuation">{</span>
-    base <span class="token operator">:=</span> <span class="token function">uintptr</span><span class="token punctuation">(</span><span class="token number">1</span> <span class="token operator">&lt;&lt;</span> b<span class="token punctuation">)</span>
-    nbuckets <span class="token operator">:=</span> base
-    <span class="token keyword">if</span> b <span class="token operator">&gt;=</span> <span class="token number">4</span> <span class="token punctuation">{</span>
-        <span class="token comment">// 向上调整 nbuckets</span>
-    <span class="token punctuation">}</span>
+~~~go
+// makeBucketArray 会根据情况判断是否要申请 nextOverflow 。
+func makeBucketArray(t *maptype, b uint8) (buckets unsafe.Pointer, nextOverflow *bmap) {
+    base := uintptr(1 << b)
+    nbuckets := base
+    if b >= 4 {
+        // 向上调整 nbuckets
+    }
 
-    <span class="token comment">// 注意，是按照 nbuckets 申请内存的</span>
-    buckets <span class="token operator">=</span> <span class="token function">newarray</span><span class="token punctuation">(</span>t<span class="token punctuation">.</span>bucket<span class="token punctuation">,</span> <span class="token function">int</span><span class="token punctuation">(</span>nbuckets<span class="token punctuation">)</span><span class="token punctuation">)</span>
+    // 注意，是按照 nbuckets 申请内存的
+    buckets = newarray(t.bucket, int(nbuckets))
 
-    <span class="token comment">// 处理 overflow 情况，</span>
-    <span class="token keyword">if</span> base <span class="token operator">!=</span> nbuckets <span class="token punctuation">{</span>
-        <span class="token comment">// 移动到 数据段 的末尾</span>
-        nextOverflow <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token operator">*</span>bmap<span class="token punctuation">)</span><span class="token punctuation">(</span><span class="token function">add</span><span class="token punctuation">(</span>buckets<span class="token punctuation">,</span> base<span class="token operator">*</span><span class="token function">uintptr</span><span class="token punctuation">(</span>t<span class="token punctuation">.</span>bucketsize<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+    // 处理 overflow 情况，
+    if base != nbuckets {
+        // 移动到 数据段 的末尾
+        nextOverflow = (*bmap)(add(buckets, base*uintptr(t.bucketsize)))
 
-        <span class="token comment">// 设置末尾地址，用来做末尾检测</span>
-        last <span class="token operator">:=</span> <span class="token punctuation">(</span><span class="token operator">*</span>bmap<span class="token punctuation">)</span><span class="token punctuation">(</span><span class="token function">add</span><span class="token punctuation">(</span>buckets<span class="token punctuation">,</span> <span class="token punctuation">(</span>nbuckets<span class="token number">-1</span><span class="token punctuation">)</span><span class="token operator">*</span><span class="token function">uintptr</span><span class="token punctuation">(</span>t<span class="token punctuation">.</span>bucketsize<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
-        last<span class="token punctuation">.</span><span class="token function">setoverflow</span><span class="token punctuation">(</span>t<span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token operator">*</span>bmap<span class="token punctuation">)</span><span class="token punctuation">(</span>buckets<span class="token punctuation">)</span><span class="token punctuation">)</span>
-    <span class="token punctuation">}</span>
-    <span class="token keyword">return</span> buckets<span class="token punctuation">,</span> nextOverflow
-<span class="token punctuation">}</span>
+        // 设置末尾地址，用来做末尾检测
+        last := (*bmap)(add(buckets, (nbuckets-1)*uintptr(t.bucketsize)))
+        last.setoverflow(t, (*bmap)(buckets))
+    }
+    return buckets, nextOverflow
+}
 
-</code></pre>
+
+~~~
+
 <h4 id="读取">读取</h4>
 <p>读取有  <code>mapaccess1</code>  和  <code>mapaccess2</code>  两个，前者返回指针，后者返回指针和一个  <code>bool</code>，用于判断 key 是否存在。这里只说  <code>mapaccess1</code>。 指针是  <code>value field</code>中存储的地址</p>
 <pre class=" language-go"><code class="prism  language-go"><span class="token keyword">func</span> <span class="token function">mapaccess1</span><span class="token punctuation">(</span>t <span class="token operator">*</span>maptype<span class="token punctuation">,</span> h <span class="token operator">*</span>hmap<span class="token punctuation">,</span> key unsafe<span class="token punctuation">.</span>Pointer<span class="token punctuation">)</span> unsafe<span class="token punctuation">.</span>Pointer <span class="token punctuation">{</span>
