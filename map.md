@@ -12,7 +12,9 @@
 <h3 id="一、map基本结构">一、map基本结构</h3>
 <p><strong>源码地址：</strong> go1.10/src/runtime/hashmap.go</p>
 <p>map的底层结构是hmap（即hashmap的缩写），核心元素是一个由若干个桶（bucket，结构为bmap）组成的数组，每个bucket可以存放若干元素（通常是8个），key通过哈希算法被归入不同的bucket中。当超过8个元素需要存入某个bucket时，hmap会使用extra中的overflow来拓展该bucket。下面是hmap的结构体。</p>
+
 ~~~go
+
 type hmap struct {
 	count     int // # 元素个数
 	flags     uint8
@@ -32,6 +34,7 @@ type hmap struct {
 <p>在extra中不仅有overflow，还有oldoverflow（用于扩容）和nextoverflow（prealloc的地址）。</p>
 
 ~~~go
+
 type mapextra struct {
      overflow    *[]*bmap
      oldoverflow *[]*bmap
@@ -50,7 +53,9 @@ type bmap struct {
 <h3 id="二、map-创建、读取">二、map 创建、读取</h3>
 <h4 id="创建">创建</h4>
 <p>创建其实就是完成内存的申请，以及一些初始值的设定。那么这里假设创建的空间较大，也就是说将 overflow 区域的初始化，也一并放在这里记录。</p>
+
 ~~~go
+
 // hint 代表的 capacity
 func makemap(t *maptype, hint int64) *hmap  {
     // 条件检查
@@ -79,10 +84,12 @@ func makemap(t *maptype, hint int64) *hmap  {
 
     ...
 }
+
 ~~~
 
 
 ~~~go
+
 // makeBucketArray 会根据情况判断是否要申请 nextOverflow 。
 func makeBucketArray(t *maptype, b uint8) (buckets unsafe.Pointer, nextOverflow *bmap) {
     base := uintptr(1 << b)
