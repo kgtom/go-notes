@@ -1,6 +1,7 @@
 
 <h2 id="总结defer常见四种用法">总结defer常见四种用法</h2>
 <h3 id="一.先进后出原则">一.先进后出原则</h3>
+
 ~~~go
 func a() {
 	for i := 0; i < 3; i++ {
@@ -21,7 +22,7 @@ func b() {
 
 <h3 id="二.defer-函数内部所使用的变量的值在这个函数运行时才确定">二.defer 函数内部所使用的变量的值在这个函数运行时才确定</h3>
 
-~~~go
+~~~ go
 func c() {
 	for i := 0; i < 3; i++ {
 		defer func(i int) {
@@ -32,6 +33,7 @@ func c() {
 }
 ~~~
 <h3 id="三.defer函数中的参数值在定义时即计算">三.defer函数中的参数值在定义时即计算</h3>
+
 ~~~go
 func d() (i int) {
 	//defer 调用的函数参数的值，在defer被定义时就确定了
@@ -43,6 +45,7 @@ func d() (i int) {
 }
 
 ~~~
+
 <h3 id="四、先执行完defer，后执行return，最后函数返回值">四、先执行完defer，后执行return，最后函数返回值</h3>
 
 ~~~go
@@ -57,6 +60,7 @@ func e() (i int) {
 }
 
 ~~~
+
 <p><strong>全部代码：</strong></p>
 
 ~~~go
